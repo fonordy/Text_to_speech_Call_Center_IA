@@ -1,4 +1,13 @@
-# Análisis Automatizado de Audios en Call Center con OpenAI y Whisper
+# 🎙️ Call Center AI Analyzer: Whisper + GPT-4
+> Automatización de transcripción y auditoría de calidad para conversaciones telefónicas.
+
+Este proyecto utiliza **OpenAI Whisper** para la transcripción de audio y la **API de OpenAI (GPT-4/3.5)** para el análisis semántico. Permite extraer métricas clave y validar el cumplimiento de scripts de venta o soporte de forma automática.
+
+## ✨ Características Principales
+* **Transcripción de alta precisión:** Uso de modelos Whisper para convertir audio a texto.
+* **Análisis de Cumplimiento:** Validación automática de si el operador siguió el script legal o comercial.
+* **Extracción de Métricas:** Identificación de sentimientos, palabras clave e interés del cliente.
+* **Generación de Reportes:** Salida estructurada para la toma de decisiones gerenciales.
 
 ## 1. Introducción
 
