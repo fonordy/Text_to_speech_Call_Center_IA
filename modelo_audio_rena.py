@@ -1,85 +1,104 @@
-
-#Importamos la liberias
+# =================================================================
+# Proyecto: AI Call Center Analyzer & Speech Validator
+# Descripción: Transcripción con Whisper y Auditoría con GPT-3.5
+# =================================================================
 
 import whisper
 from openai import OpenAI
 from docx import Document
+import os
 
-#Lectura de archivo word
+# --- 1. FUNCIONES DE UTILIDAD ---
 
 def leer_documento_word(ruta_archivo):
-    documento = Document(ruta_archivo)
-    texto_completo = []
-    for parrafo in documento.paragraphs:
-        texto_completo.append(parrafo.text)
-    return "\n".join(texto_completo)
+    """Lee un archivo .docx y devuelve el texto completo."""
+    try:
+        documento = Document(ruta_archivo)
+        texto_completo = []
+        for parrafo in documento.paragraphs:
+            texto_completo.append(parrafo.text)
+        return "\n".join(texto_completo)
+    except Exception as e:
+        print(f"Error al leer el archivo Word: {e}")
+        return "Guion base no encontrado."
 
-"""#Ruta del archivo del speech e impresion"""
+# --- 2. CONFIGURACIÓN DE RUTAS Y CLIENTES ---
 
-ruta_archivo = "ponemos el script en doc para poder leerlo.docx"
-texto_speech = leer_documento_word(ruta_archivo)
-print(texto_speech)
+# NOTA: Reemplaza con tus archivos locales para pruebas
+ruta_archivo_guion = "tu_guion_de_ventas.docx" 
+texto_speech = leer_documento_word(ruta_archivo_guion)
 
-"""#Insertacion de la API de OpenAI"""
-
-OPENAI_API_KEY="*****************************" # Inserta la API de openAI, visita la web para verificar como se consume esta API
+# SEGURIDAD: Se recomienda usar variables de entorno para la API Key
+# En local puedes usar: os.environ["OPENAI_API_KEY"] = "tu_key"
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "TU_API_KEY_AQUI")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-"""# Carga el modelo Whisper."""
+# --- 3. PROCESAMIENTO DE AUDIO (WHISPER) ---
 
+print("Cargando modelo Whisper...")
 model = whisper.load_model("base")
 
-"""#Se cargan los audios, puede variar, esto es de prueba"""
-
+# Lista de audios a procesar
 archivos_audio = [
-    "Llamada Hot Lead_1.mp3",
-    "Llamada Hot Lead_2.mp3",
-    "Llamada Hot Lead_3.mp3",
-    "Llamada Hot Lead_4.mp3",
-    "Llamada Hot Lead_5.mp3"
-    
+    "Llamada_Hot_Lead_1.mp3",
+    "Llamada_Hot_Lead_2.mp3",
+    "Llamada_Hot_Lead_3.mp3",
+    "Llamada_Hot_Lead_4.mp3",
+    "Llamada_Hot_Lead_5.mp3"
 ]
-
-"""#Diccionario para almacenar las transcripciones"""
 
 textos_transcritos = {}
 
-"""#Itera sobre cada archivo de audio y transcribe su contenido"""
-
+print("Iniciando transcripciones...")
 for archivo in archivos_audio:
-    resultado = model.transcribe(archivo)
-    texto_transcrito = resultado['text']
-    textos_transcritos[archivo] = texto_transcrito
+    if os.path.exists(archivo):
+        print(f"Transcribiendo: {archivo}...")
+        resultado = model.transcribe(archivo)
+        textos_transcritos[archivo] = resultado['text']
+    else:
+        print(f"Aviso: El archivo {archivo} no se encontró en la ruta local.")
 
-"""#Imprime las transcripciones"""
+# --- 4. ANÁLISIS DE INTELIGENCIA DE NEGOCIO (GPT) ---
 
-for i, (archivo, texto) in enumerate(textos_transcritos.items(), start=1):
-    print(f"{i}. {archivo}: {texto}\n")
+if textos_transcritos:
+    # --- Pregunta 1: Análisis de Interés ---
+    prompt_interes = f"""
+    Analiza las siguientes 5 transcripciones de conversaciones de venta. 
+    Determina por separado el nivel de interés de cada cliente.
+    Indica un porcentaje estimado de interés por cada una y concluye quién es 
+    el cliente más interesado y el menos interesado:
+    \n{textos_transcritos}
+    """
 
-"""#Se reliza la pregunta 1 de un analisis por cada audio"""
+    print("\nGenerando reporte de interés del cliente...")
+    resp_interes = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "Eres un experto en análisis de ventas y calidad."},
+            {"role": "user", "content": prompt_interes},
+        ]
+    )
+    print("REPORTE DE INTERÉS:")
+    print(resp_interes.choices[0].message.content)
 
-pregunta = f"Analiza los sigueintes textos de  conversación que en total son 5 y determina por separado si en cada una de las conversaciones el cliente esta interesado, por cada una de las conversaciones  indica el porcentaje estimado de interés y al final menciona que conversacion contiene el cliente mas y el menos interesado:\n{textos_transcritos}"
+    # --- Pregunta 2: Validación de Speech Text ---
+    prompt_validacion = f"""
+    Compara las siguientes transcripciones contra el guion de ventas (Speech Text) proporcionado.
+    Dime si cada conversación se alinea o se desvía del guion, detalla similitudes 
+    y entrega un porcentaje de cumplimiento por llamada:
+    \nGuion: {texto_speech}
+    \nTranscripciones: {textos_transcritos}
+    """
 
-"""#Contestacion a la pregunta 1"""
-
-response = client.chat.completions.create(
-  model="gpt-3.5-turbo-0125",
-  messages=[
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": pregunta},
-  ]
-)
-response.choices[0].message.content
-
-"""#Pregunta 2 sobre validacion del speech por cada audio"""
-
-pregunta2 = f"haz una lista de las conversaciones y analiza y detalla si cada conversacion se alinea o  se esta desviando del speech text, dime cuales son las similitudes con el speech text y reflejalo en un porcentaje por cada conversacion:\n{texto_speech,textos_transcritos}"
-
-response = client.chat.completions.create(
-  model="gpt-3.5-turbo-0125", #Este modelo puede variar segun la version de gpt que deseas usar, validar en la pagina los tokens, visita la pagina oficial para mas detalles de eso
-  messages=[
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": pregunta2},
-  ]
-)
-response.choices[0].message.content
+    print("\nGenerando reporte de cumplimiento de script...")
+    resp_validacion = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "Eres un auditor de calidad de Call Center."},
+            {"role": "user", "content": prompt_validacion},
+        ]
+    )
+    print("REPORTE DE CUMPLIMIENTO:")
+    print(resp_validacion.choices[0].message.content)
+else:
+    print("No hay transcripciones disponibles para analizar.")
